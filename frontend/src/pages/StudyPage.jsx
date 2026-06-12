@@ -1,0 +1,222 @@
+import { useEffect, useState } from "react";
+import {
+  createQuestionManual,
+  generateQuestions,
+  getExternalPrompt,
+  listQuestions,
+  listTopics,
+  submitAttempt,
+} from "../api/client.js";
+
+export default function StudyPage() {
+  const [topics, setTopics] = useState([]);
+  const [topicId, setTopicId] = useState("");
+  const [questions, setQuestions] = useState([]);
+  const [provider, setProvider] = useState("gemini");
+  const [difficulty, setDifficulty] = useState("medium");
+  const [count, setCount] = useState(5);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [externalPrompt, setExternalPrompt] = useState(null);
+  const [answers, setAnswers] = useState({});
+  const [results, setResults] = useState({});
+  const [grading, setGrading] = useState(null);
+
+  useEffect(() => {
+    listTopics("active").then((res) => {
+      setTopics(res.data);
+      if (res.data.length > 0) setTopicId(String(res.data[0].id));
+    });
+  }, []);
+
+  const loadQuestions = async (id) => {
+    if (!id) return;
+    const res = await listQuestions(id);
+    setQuestions(res.data);
+  };
+
+  useEffect(() => {
+    loadQuestions(topicId);
+    setExternalPrompt(null);
+  }, [topicId]);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await generateQuestions({ topic_id: Number(topicId), count: Number(count), difficulty, provider });
+      await loadQuestions(topicId);
+    } catch (err) {
+      setError(err.response?.data?.detail || "Question generation failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExternalPrompt = async () => {
+    const res = await getExternalPrompt(topicId, difficulty, count);
+    setExternalPrompt(res.data.prompt);
+  };
+
+  const handleSubmitAnswer = async (questionId) => {
+    setGrading(questionId);
+    setError(null);
+    try {
+      const res = await submitAttempt({
+        question_id: questionId,
+        user_answer: answers[questionId] || "",
+        provider,
+      });
+      setResults((prev) => ({ ...prev, [questionId]: res.data }));
+    } catch (err) {
+      setError(err.response?.data?.detail || "Grading failed");
+    } finally {
+      setGrading(null);
+    }
+  };
+
+  const handleAddManual = async () => {
+    const question_text = prompt("Question text:");
+    if (!question_text) return;
+    const ideal_answer = prompt("Ideal answer (optional):") || null;
+    await createQuestionManual({ topic_id: Number(topicId), question_text, ideal_answer });
+    await loadQuestions(topicId);
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="bg-white rounded-lg shadow p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Study</h2>
+
+        <div className="flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Topic</label>
+            <select
+              value={topicId}
+              onChange={(e) => setTopicId(e.target.value)}
+              className="border rounded-md px-3 py-2 text-sm"
+            >
+              {topics.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Provider</label>
+            <select value={provider} onChange={(e) => setProvider(e.target.value)} className="border rounded-md px-3 py-2 text-sm">
+              <option value="gemini">Gemini</option>
+              <option value="groq">Groq</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Difficulty</label>
+            <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="border rounded-md px-3 py-2 text-sm">
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Count</label>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={count}
+              onChange={(e) => setCount(e.target.value)}
+              className="border rounded-md px-3 py-2 text-sm w-20"
+            />
+          </div>
+
+          <button
+            onClick={handleGenerate}
+            disabled={!topicId || loading}
+            className="px-4 py-2 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {loading ? "Generating…" : "Generate Questions"}
+          </button>
+
+          <button
+            onClick={handleExternalPrompt}
+            disabled={!topicId}
+            className="px-4 py-2 text-sm rounded-md border border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+          >
+            Get Prompt for Other Chatbots
+          </button>
+
+          <button
+            onClick={handleAddManual}
+            disabled={!topicId}
+            className="px-4 py-2 text-sm rounded-md border text-gray-600 hover:bg-gray-50"
+          >
+            Add Question Manually
+          </button>
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        {externalPrompt && (
+          <div className="bg-gray-50 border rounded-md p-3">
+            <p className="text-xs text-gray-500 mb-1">
+              Copy this into ChatGPT, Claude, or any other chatbot to get more/better questions:
+            </p>
+            <textarea readOnly value={externalPrompt} className="w-full text-sm border rounded-md p-2 h-28" />
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        {questions.length === 0 && (
+          <p className="text-sm text-gray-500">No questions yet for this topic. Generate some above.</p>
+        )}
+        {questions.map((q) => {
+          const result = results[q.id];
+          return (
+            <div key={q.id} className="bg-white rounded-lg shadow p-6 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-medium">{q.question_text}</p>
+                <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">
+                  {q.difficulty} · {q.source}
+                </span>
+              </div>
+
+              <textarea
+                placeholder="Type your answer here…"
+                value={answers[q.id] || ""}
+                onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                className="w-full border rounded-md p-2 text-sm h-24"
+              />
+
+              <button
+                onClick={() => handleSubmitAnswer(q.id)}
+                disabled={grading === q.id}
+                className="px-4 py-2 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {grading === q.id ? "Grading…" : "Submit Answer"}
+              </button>
+
+              {result && (
+                <div className="bg-gray-50 border rounded-md p-3 text-sm">
+                  <p className="font-semibold">Score: {result.score}/100</p>
+                  <p className="text-gray-600 mt-1">{result.feedback}</p>
+                </div>
+              )}
+
+              {q.ideal_answer && (
+                <details className="text-sm text-gray-500">
+                  <summary className="cursor-pointer">Show ideal answer</summary>
+                  <p className="mt-1">{q.ideal_answer}</p>
+                </details>
+              )}
+            </div>
+          );
+        })}
+      </section>
+    </div>
+  );
+}
