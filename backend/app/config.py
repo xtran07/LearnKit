@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     database_url: str
     supabase_url: str = ""
     supabase_service_key: str = ""
+    supabase_jwt_secret: str = ""
     supabase_bucket: str = "resumes"
     gemini_api_key: str = ""
     groq_api_key: str = ""

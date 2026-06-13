@@ -1,7 +1,16 @@
 import axios from "axios";
+import { supabase } from "../supabaseClient.js";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
+});
+
+api.interceptors.request.use(async (config) => {
+  const { data } = await supabase.auth.getSession();
+  if (data.session) {
+    config.headers.Authorization = `Bearer ${data.session.access_token}`;
+  }
+  return config;
 });
 
 // ---- Resumes ----

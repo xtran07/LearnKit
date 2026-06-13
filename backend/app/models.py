@@ -34,6 +34,7 @@ class Resume(Base):
     __tablename__ = "resumes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(255), index=True)
     filename: Mapped[str] = mapped_column(String(255))
     storage_path: Mapped[str] = mapped_column(String(500))
     raw_text: Mapped[str] = mapped_column(Text)
@@ -46,6 +47,7 @@ class Topic(Base):
     __tablename__ = "topics"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(255), index=True)
     resume_id: Mapped[int | None] = mapped_column(ForeignKey("resumes.id", ondelete="CASCADE"), nullable=True)
     name: Mapped[str] = mapped_column(String(255))
     status: Mapped[TopicStatus] = mapped_column(Enum(TopicStatus), default=TopicStatus.active)

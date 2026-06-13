@@ -14,6 +14,10 @@ environment variable settings (deployed).
 5. Convert it to the async driver format used by this backend:
    `postgresql+asyncpg://user:password@ep-xxxx.ap-southeast-1.aws.neon.tech/dbname?ssl=require`
    (replace `postgresql://` -> `postgresql+asyncpg://`, and `sslmode=require` -> `ssl=require`)
+6. **Important**: if Neon's connection string also includes `&channel_binding=require`, remove
+   that part entirely. `asyncpg` does not accept `channel_binding` as a connect parameter and
+   will fail at startup with `TypeError: connect() got an unexpected keyword argument
+   'channel_binding'`.
 
 ## 2. Supabase Storage (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET`)
 
@@ -102,3 +106,55 @@ requests from your live frontend.
 1. Deploy backend to Render first (get its URL).
 2. Deploy frontend to Vercel using that URL for `VITE_API_BASE_URL`.
 3. Update `FRONTEND_ORIGIN` on Render with the Vercel URL and redeploy.
+
+---
+
+## Login with Google (Supabase Auth)
+
+### 1. Frontend Supabase keys (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
+
+1. In your Supabase project: Project Settings -> API.
+2. **VITE_SUPABASE_URL** = "Project URL" (same value as `SUPABASE_URL`).
+3. **VITE_SUPABASE_ANON_KEY** = "Project API keys" -> the **`anon` / `public`** key (safe to
+   expose in the frontend -- do NOT use the `service_role` key here).
+
+### 2. Backend JWT secret (`SUPABASE_JWT_SECRET`)
+
+1. Same Project Settings -> API page -> "JWT Settings" -> copy the **JWT Secret**.
+2. This lets FastAPI verify the access tokens Supabase issues after login.
+
+### 3. Create a Google OAuth Client
+
+1. Go to https://console.cloud.google.com/ -> create/select a project.
+2. "APIs & Services" -> "OAuth consent screen" -> configure (External, add your email as a
+   test user if still in testing mode).
+3. "APIs & Services" -> "Credentials" -> "Create Credentials" -> "OAuth client ID" ->
+   Application type: **Web application**.
+4. Under "Authorized redirect URIs", add:
+   `https://<your-project-ref>.supabase.co/auth/v1/callback`
+   (find `<your-project-ref>` in your Supabase project URL).
+5. Copy the generated **Client ID** and **Client Secret**.
+
+### 4. Enable Google provider in Supabase
+
+1. Supabase dashboard -> Authentication -> Providers -> Google -> enable it.
+2. Paste the Client ID and Client Secret from step 3. Save.
+
+### 5. Configure redirect URLs in Supabase
+
+1. Authentication -> URL Configuration.
+2. Set **Site URL** to your deployed frontend URL (e.g. `https://learnkit-xxxx.vercel.app`).
+3. Add both `http://localhost:5173` and your Vercel URL to **Redirect URLs** so login works
+   in local dev and production.
+
+### 6. Add the new env vars everywhere
+
+- `backend/.env` and Render: `SUPABASE_JWT_SECRET`
+- `frontend/.env` and Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+
+### Note on existing data
+
+The `resumes` and `topics` tables now have a required `user_id` column. If you already have
+rows from before auth was added, either delete them (fresh start) or manually backfill
+`user_id` with your Supabase user UUID (Authentication -> Users, after your first Google
+login) before the app will show them again.

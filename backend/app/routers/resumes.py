@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user_id
 from app.database import get_db
 from app.models import Resume, Topic, TopicSource
 from app.schemas import ResumeOut, TopicOut
@@ -11,7 +12,9 @@ router = APIRouter(prefix="/resumes", tags=["resumes"])
 
 
 @router.post("/upload", response_model=ResumeOut)
-async def upload_resume(file: UploadFile, db: AsyncSession = Depends(get_db)):
+async def upload_resume(
+    file: UploadFile, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)
+):
     if not file.filename.lower().endswith((".pdf", ".txt", ".md")):
         raise HTTPException(status_code=400, detail="Only PDF, TXT, or MD files are supported")
 
@@ -22,7 +25,7 @@ async def upload_resume(file: UploadFile, db: AsyncSession = Depends(get_db)):
 
     storage_path = storage.upload_resume(file.filename, file_bytes, file.content_type or "application/octet-stream")
 
-    resume = Resume(filename=file.filename, storage_path=storage_path, raw_text=raw_text)
+    resume = Resume(user_id=user_id, filename=file.filename, storage_path=storage_path, raw_text=raw_text)
     db.add(resume)
     await db.commit()
     await db.refresh(resume)
@@ -30,27 +33,36 @@ async def upload_resume(file: UploadFile, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("", response_model=list[ResumeOut])
-async def list_resumes(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Resume).order_by(Resume.created_at.desc()))
+async def list_resumes(db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    result = await db.execute(
+        select(Resume).where(Resume.user_id == user_id).order_by(Resume.created_at.desc())
+    )
     return result.scalars().all()
 
 
 @router.post("/{resume_id}/suggest-topics", response_model=list[TopicOut])
-async def suggest_topics(resume_id: int, provider: str = "gemini", db: AsyncSession = Depends(get_db)):
+async def suggest_topics(
+    resume_id: int,
+    provider: str = "gemini",
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
     resume = await db.get(Resume, resume_id)
-    if resume is None:
+    if resume is None or resume.user_id != user_id:
         raise HTTPException(status_code=404, detail="Resume not found")
 
     topic_names = resume_parser.suggest_topics(resume.raw_text, provider)
 
-    existing = await db.execute(select(Topic.name).where(Topic.resume_id == resume_id))
+    existing = await db.execute(
+        select(Topic.name).where(Topic.user_id == user_id, Topic.resume_id == resume_id)
+    )
     existing_names = {name.lower() for name in existing.scalars().all()}
 
     created = []
     for name in topic_names:
         if name.lower() in existing_names:
             continue
-        topic = Topic(resume_id=resume_id, name=name, source=TopicSource.resume)
+        topic = Topic(user_id=user_id, resume_id=resume_id, name=name, source=TopicSource.resume)
         db.add(topic)
         created.append(topic)
         existing_names.add(name.lower())

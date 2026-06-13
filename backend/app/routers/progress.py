@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user_id
 from app.database import get_db
 from app.models import Attempt, Question, Topic
 from app.schemas import AttemptCreate, AttemptOut, TopicProgress
@@ -10,11 +11,21 @@ from app.services import llm_service
 router = APIRouter(tags=["progress"])
 
 
-@router.post("/attempts", response_model=AttemptOut)
-async def submit_attempt(payload: AttemptCreate, db: AsyncSession = Depends(get_db)):
-    question = await db.get(Question, payload.question_id)
+async def _get_owned_question(question_id: int, user_id: str, db: AsyncSession) -> Question:
+    question = await db.get(Question, question_id)
     if question is None:
         raise HTTPException(status_code=404, detail="Question not found")
+    topic = await db.get(Topic, question.topic_id)
+    if topic is None or topic.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Question not found")
+    return question
+
+
+@router.post("/attempts", response_model=AttemptOut)
+async def submit_attempt(
+    payload: AttemptCreate, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)
+):
+    question = await _get_owned_question(payload.question_id, user_id, db)
 
     try:
         result = llm_service.grade_answer(
@@ -36,7 +47,10 @@ async def submit_attempt(payload: AttemptCreate, db: AsyncSession = Depends(get_
 
 
 @router.get("/attempts", response_model=list[AttemptOut])
-async def list_attempts(question_id: int, db: AsyncSession = Depends(get_db)):
+async def list_attempts(
+    question_id: int, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)
+):
+    await _get_owned_question(question_id, user_id, db)
     result = await db.execute(
         select(Attempt).where(Attempt.question_id == question_id).order_by(Attempt.created_at.desc())
     )
@@ -44,8 +58,8 @@ async def list_attempts(question_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/progress", response_model=list[TopicProgress])
-async def topic_progress(db: AsyncSession = Depends(get_db)):
-    topics = (await db.execute(select(Topic))).scalars().all()
+async def topic_progress(db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    topics = (await db.execute(select(Topic).where(Topic.user_id == user_id))).scalars().all()
 
     summaries = []
     for topic in topics:
