@@ -21,6 +21,7 @@ export default function StudyPage() {
   const [answers, setAnswers] = useState({});
   const [results, setResults] = useState({});
   const [grading, setGrading] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     listTopics("active").then((res) => {
@@ -73,6 +74,17 @@ export default function StudyPage() {
     } finally {
       setGrading(null);
     }
+  };
+
+  const handleCopyQuestion = async (q) => {
+    await navigator.clipboard.writeText(q.question_text);
+    setCopiedId(q.id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const handleOpenInClaude = (q) => {
+    const prompt = `Can you help me understand and learn this interview question?\n\n${q.question_text}`;
+    window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, "_blank", "noopener,noreferrer");
   };
 
   const handleAddManual = async () => {
@@ -183,6 +195,21 @@ export default function StudyPage() {
                 <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">
                   {q.difficulty} · {q.source}
                 </span>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleCopyQuestion(q)}
+                  className="px-3 py-1 text-xs rounded-md border text-gray-600 hover:bg-gray-50"
+                >
+                  {copiedId === q.id ? "Copied!" : "Copy question"}
+                </button>
+                <button
+                  onClick={() => handleOpenInClaude(q)}
+                  className="px-3 py-1 text-xs rounded-md border border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                >
+                  Open in Claude
+                </button>
               </div>
 
               <textarea
