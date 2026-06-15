@@ -11,6 +11,7 @@ import {
 } from "../api/client.js";
 
 const statusStyles = {
+  new: "bg-gray-100 text-gray-700",
   applied: "bg-blue-100 text-blue-700",
   in_progress: "bg-yellow-100 text-yellow-700",
   waiting: "bg-purple-100 text-purple-700",
@@ -18,13 +19,13 @@ const statusStyles = {
   offered: "bg-green-100 text-green-700",
 };
 
-const statusOptions = ["applied", "in_progress", "waiting", "rejected", "offered"];
+const statusOptions = ["new", "applied", "in_progress", "waiting", "rejected", "offered"];
 
 const emptyForm = {
   name: "",
   company: "",
   role: "",
-  status: "applied",
+  status: "new",
   source: "",
   job_post_link: "",
   job_portal_link: "",

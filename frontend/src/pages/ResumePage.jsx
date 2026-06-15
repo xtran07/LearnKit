@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listResumes, suggestTopics, uploadResume } from "../api/client.js";
+import { getResumeUrl, listResumes, suggestTopics, uploadResume } from "../api/client.js";
 
 export default function ResumePage() {
   const [resumes, setResumes] = useState([]);
@@ -31,6 +31,26 @@ export default function ResumePage() {
     } finally {
       setUploading(false);
       e.target.value = "";
+    }
+  };
+
+  const handleView = async (resumeId) => {
+    setError(null);
+    try {
+      const res = await getResumeUrl(resumeId);
+      window.open(res.data.url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setError(err.response?.data?.detail || "Could not open resume");
+    }
+  };
+
+  const handleDownload = async (resumeId) => {
+    setError(null);
+    try {
+      const res = await getResumeUrl(resumeId, true);
+      window.open(res.data.url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setError(err.response?.data?.detail || "Could not download resume");
     }
   };
 
@@ -77,13 +97,27 @@ export default function ResumePage() {
                   Uploaded {new Date(resume.created_at).toLocaleString()}
                 </p>
               </div>
-              <button
-                onClick={() => handleSuggestTopics(resume.id)}
-                disabled={suggesting === resume.id}
-                className="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {suggesting === resume.id ? "Generating…" : "Suggest Topics"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleView(resume.id)}
+                  className="px-3 py-1.5 text-sm rounded-md border text-gray-600 hover:bg-gray-50"
+                >
+                  View
+                </button>
+                <button
+                  onClick={() => handleDownload(resume.id)}
+                  className="px-3 py-1.5 text-sm rounded-md border text-gray-600 hover:bg-gray-50"
+                >
+                  Download
+                </button>
+                <button
+                  onClick={() => handleSuggestTopics(resume.id)}
+                  disabled={suggesting === resume.id}
+                  className="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {suggesting === resume.id ? "Generating…" : "Suggest Topics"}
+                </button>
+              </div>
             </li>
           ))}
         </ul>

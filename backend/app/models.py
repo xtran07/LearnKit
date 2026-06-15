@@ -74,6 +74,7 @@ class Question(Base):
 
 
 class ApplicationStatus(str, enum.Enum):
+    new = "new"
     applied = "applied"
     in_progress = "in_progress"
     waiting = "waiting"
@@ -89,7 +90,7 @@ class JobApplication(Base):
     name: Mapped[str] = mapped_column(String(255))
     company: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(255))
-    status: Mapped[ApplicationStatus] = mapped_column(Enum(ApplicationStatus), default=ApplicationStatus.applied)
+    status: Mapped[ApplicationStatus] = mapped_column(Enum(ApplicationStatus), default=ApplicationStatus.new)
     source: Mapped[str | None] = mapped_column(String(255), nullable=True)
     job_post_link: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     job_portal_link: Mapped[str | None] = mapped_column(String(1000), nullable=True)

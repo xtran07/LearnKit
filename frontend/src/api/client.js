@@ -24,6 +24,9 @@ export const uploadResume = (file) => {
 
 export const listResumes = () => api.get("/resumes");
 
+export const getResumeUrl = (resumeId, download = false) =>
+  api.get(`/resumes/${resumeId}/url`, { params: { download } });
+
 export const suggestTopics = (resumeId, provider = "gemini") =>
   api.post(`/resumes/${resumeId}/suggest-topics`, null, { params: { provider } });
 

@@ -40,6 +40,21 @@ async def list_resumes(db: AsyncSession = Depends(get_db), user_id: str = Depend
     return result.scalars().all()
 
 
+@router.get("/{resume_id}/url")
+async def get_resume_url(
+    resume_id: int,
+    download: bool = False,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    resume = await db.get(Resume, resume_id)
+    if resume is None or resume.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    url = storage.get_resume_url(resume.storage_path, download=download, filename=resume.filename)
+    return {"url": url}
+
+
 @router.post("/{resume_id}/suggest-topics", response_model=list[TopicOut])
 async def suggest_topics(
     resume_id: int,

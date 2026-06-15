@@ -99,7 +99,7 @@ class ApplicationBase(BaseModel):
     name: str
     company: str
     role: str
-    status: ApplicationStatus = ApplicationStatus.applied
+    status: ApplicationStatus = ApplicationStatus.new
     source: str | None = None
     job_post_link: str | None = None
     job_portal_link: str | None = None
