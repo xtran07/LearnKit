@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import QuestionDifficulty, QuestionSource, TopicSource, TopicStatus
+from app.models import ApplicationStatus, QuestionDifficulty, QuestionSource, TopicSource, TopicStatus
 
 
 # ---- Resume ----
@@ -92,3 +92,82 @@ class TopicProgress(BaseModel):
     total_questions: int
     attempted_questions: int
     average_score: float | None
+
+
+# ---- Job Applications ----
+class ApplicationBase(BaseModel):
+    name: str
+    company: str
+    role: str
+    status: ApplicationStatus = ApplicationStatus.applied
+    source: str | None = None
+    job_post_link: str | None = None
+    job_portal_link: str | None = None
+    poc: str | None = None
+    notes: str | None = None
+    practice_interview_done: bool = False
+
+
+class ApplicationCreate(ApplicationBase):
+    pass
+
+
+class ApplicationUpdate(BaseModel):
+    name: str | None = None
+    company: str | None = None
+    role: str | None = None
+    status: ApplicationStatus | None = None
+    source: str | None = None
+    job_post_link: str | None = None
+    job_portal_link: str | None = None
+    poc: str | None = None
+    notes: str | None = None
+    practice_interview_done: bool | None = None
+
+
+class ApplicationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    company: str
+    role: str
+    status: ApplicationStatus
+    source: str | None
+    job_post_link: str | None
+    job_portal_link: str | None
+    poc: str | None
+    notes: str | None
+    practice_interview_done: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ApplicationResolveRequest(BaseModel):
+    url: str
+
+
+class ApplicationResolveResult(BaseModel):
+    name: str | None = None
+    company: str | None = None
+    role: str | None = None
+    source: str | None = None
+
+
+# ---- Application (mock interview) Questions ----
+class AppQuestionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    application_id: int
+    question_text: str
+    ideal_answer: str | None
+    difficulty: QuestionDifficulty
+    source: QuestionSource
+    created_at: datetime
+
+
+class AppQuestionGenerateRequest(BaseModel):
+    count: int = 5
+    difficulty: QuestionDifficulty = QuestionDifficulty.medium
+    provider: str = "gemini"

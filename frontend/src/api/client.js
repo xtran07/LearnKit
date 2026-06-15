@@ -55,4 +55,23 @@ export const listAttempts = (questionId) => api.get("/attempts", { params: { que
 
 export const getProgress = () => api.get("/progress");
 
+// ---- Job Applications ----
+export const listApplications = (status) => api.get("/applications", { params: status ? { status } : {} });
+
+export const createApplication = (payload) => api.post("/applications", payload);
+
+export const updateApplication = (id, payload) => api.patch(`/applications/${id}`, payload);
+
+export const deleteApplication = (id) => api.delete(`/applications/${id}`);
+
+export const resolveApplicationLink = (url) => api.post("/applications/resolve", { url });
+
+// ---- Application Mock Interview Questions ----
+export const listAppQuestions = (applicationId) => api.get(`/applications/${applicationId}/questions`);
+
+export const generateAppQuestions = (applicationId, payload) =>
+  api.post(`/applications/${applicationId}/questions/generate`, payload);
+
+export const deleteAppQuestion = (id) => api.delete(`/applications/questions/${id}`);
+
 export default api;

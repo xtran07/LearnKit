@@ -3,6 +3,7 @@ import ResumePage from "./pages/ResumePage.jsx";
 import TopicsPage from "./pages/TopicsPage.jsx";
 import StudyPage from "./pages/StudyPage.jsx";
 import ProgressPage from "./pages/ProgressPage.jsx";
+import ApplicationsPage from "./pages/ApplicationsPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import { useAuth } from "./AuthContext.jsx";
 
@@ -39,6 +40,9 @@ export default function App() {
           <NavLink to="/progress" className={navLinkClass}>
             Progress
           </NavLink>
+          <NavLink to="/applications" className={navLinkClass}>
+            Applications
+          </NavLink>
 
           <div className="ml-auto flex items-center gap-3">
             <span className="text-sm text-gray-500">{user.email}</span>
@@ -55,6 +59,7 @@ export default function App() {
           <Route path="/topics" element={<TopicsPage />} />
           <Route path="/study" element={<StudyPage />} />
           <Route path="/progress" element={<ProgressPage />} />
+          <Route path="/applications" element={<ApplicationsPage />} />
         </Routes>
       </main>
     </div>

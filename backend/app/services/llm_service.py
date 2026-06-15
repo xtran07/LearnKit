@@ -95,3 +95,39 @@ def build_external_prompt(topic_name: str, resume_context: str, difficulty: str,
         "each with a concise ideal answer.\n\n"
         f"Resume excerpt:\n{resume_context or '(paste your resume excerpt here)'}"
     )
+
+
+def _job_resolve_prompt(page_text: str) -> str:
+    return (
+        "Extract job posting details from the page text below. Respond ONLY with JSON, "
+        "no markdown fences, in the shape:\n"
+        '{"company": "...", "role": "...", "name": "...", "source": "..."}\n'
+        "Where 'name' is a short label like 'Company - Role', and 'source' is the job "
+        "portal/site name if identifiable (e.g. LinkedIn, Indeed), else null. "
+        "Use null for any field you cannot determine.\n\n"
+        f"Page text:\n{page_text[:6000]}"
+    )
+
+
+def resolve_job_posting(page_text: str, provider: str = "gemini") -> dict:
+    raw = _call_provider(_job_resolve_prompt(page_text), provider)
+    return json.loads(_strip_code_fence(raw))
+
+
+def _app_question_gen_prompt(company: str, role: str, resume_context: str, count: int, difficulty: str) -> str:
+    return (
+        f"You are an interview coach. Generate {count} {difficulty}-difficulty mock interview "
+        f"questions for a candidate interviewing for the role '{role}' at '{company}'. "
+        "Tailor questions to this role/company, drawing on the candidate's resume excerpt below "
+        "where relevant.\n\n"
+        f"Resume excerpt:\n{resume_context or '(no resume context provided)'}\n\n"
+        "Respond ONLY with a JSON array, no markdown fences, where each item has the shape:\n"
+        '{"question": "...", "ideal_answer": "..."}'
+    )
+
+
+def generate_application_questions(
+    company: str, role: str, resume_context: str, count: int, difficulty: str, provider: str = "gemini"
+) -> list[dict]:
+    raw = _call_provider(_app_question_gen_prompt(company, role, resume_context, count, difficulty), provider)
+    return json.loads(_strip_code_fence(raw))
