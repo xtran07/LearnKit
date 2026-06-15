@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { getResumeUrl, listResumes, suggestTopics, uploadResume } from "../api/client.js";
+import { useModel } from "../ModelContext.jsx";
 
 export default function ResumePage() {
+  const { provider } = useModel();
   const [resumes, setResumes] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [suggesting, setSuggesting] = useState(null);
@@ -59,7 +61,7 @@ export default function ResumePage() {
     setError(null);
     setMessage(null);
     try {
-      const res = await suggestTopics(resumeId);
+      const res = await suggestTopics(resumeId, provider);
       setMessage(`Added ${res.data.length} new topic(s) from this resume. Check the Topics tab.`);
     } catch (err) {
       setError(err.response?.data?.detail || "Topic suggestion failed");

@@ -13,6 +13,7 @@ import {
   searchJobLeads,
   updateApplication,
 } from "../api/client.js";
+import { useModel } from "../ModelContext.jsx";
 
 const statusStyles = {
   new: "bg-gray-100 text-gray-700",
@@ -39,6 +40,7 @@ const emptyForm = {
 };
 
 export default function ApplicationsPage() {
+  const { provider: defaultProvider } = useModel();
   const [applications, setApplications] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [resolveUrl, setResolveUrl] = useState("");
@@ -49,7 +51,7 @@ export default function ApplicationsPage() {
   const [appQuestions, setAppQuestions] = useState({});
   const [genDifficulty, setGenDifficulty] = useState("medium");
   const [genCount, setGenCount] = useState(5);
-  const [genProvider, setGenProvider] = useState("gemini");
+  const [genProvider, setGenProvider] = useState(defaultProvider);
   const [generating, setGenerating] = useState(false);
   const [copiedQuestionId, setCopiedQuestionId] = useState(null);
 

@@ -87,4 +87,9 @@ export const addJobLead = (id) => api.post(`/job-leads/${id}/add`);
 
 export const dismissJobLead = (id) => api.delete(`/job-leads/${id}`);
 
+// ---- User Settings ----
+export const getUserSettings = () => api.get("/settings");
+
+export const updateUserSettings = (payload) => api.patch("/settings", payload);
+
 export default api;

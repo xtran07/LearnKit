@@ -7,12 +7,14 @@ import {
   listTopics,
   submitAttempt,
 } from "../api/client.js";
+import { useModel } from "../ModelContext.jsx";
 
 export default function StudyPage() {
+  const { provider: defaultProvider } = useModel();
   const [topics, setTopics] = useState([]);
   const [topicId, setTopicId] = useState("");
   const [questions, setQuestions] = useState([]);
-  const [provider, setProvider] = useState("gemini");
+  const [provider, setProvider] = useState(defaultProvider);
   const [difficulty, setDifficulty] = useState("medium");
   const [count, setCount] = useState(5);
   const [loading, setLoading] = useState(false);

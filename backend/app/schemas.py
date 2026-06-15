@@ -190,3 +190,14 @@ class JobLeadOut(BaseModel):
 class JobLeadSearchRequest(BaseModel):
     query: str
     location: str | None = None
+
+
+# ---- User Settings ----
+class UserSettingsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    preferred_provider: str
+
+
+class UserSettingsUpdate(BaseModel):
+    preferred_provider: str
