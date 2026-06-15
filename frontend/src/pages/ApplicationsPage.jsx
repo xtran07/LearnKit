@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import {
+  addJobLead,
   createApplication,
   deleteApplication,
   deleteAppQuestion,
+  dismissJobLead,
   generateAppQuestions,
   listApplications,
   listAppQuestions,
+  listJobLeads,
   resolveApplicationLink,
+  searchJobLeads,
   updateApplication,
 } from "../api/client.js";
 
@@ -49,14 +53,50 @@ export default function ApplicationsPage() {
   const [generating, setGenerating] = useState(false);
   const [copiedQuestionId, setCopiedQuestionId] = useState(null);
 
+  const [leads, setLeads] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchLocation, setSearchLocation] = useState("");
+  const [searching, setSearching] = useState(false);
+
   const loadApplications = async () => {
     const res = await listApplications();
     setApplications(res.data);
   };
 
+  const loadLeads = async () => {
+    const res = await listJobLeads();
+    setLeads(res.data);
+  };
+
   useEffect(() => {
     loadApplications();
+    loadLeads();
   }, []);
+
+  const handleSearchLeads = async () => {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    setError(null);
+    try {
+      await searchJobLeads(searchQuery.trim(), searchLocation.trim());
+      await loadLeads();
+    } catch (err) {
+      setError(err.response?.data?.detail || "Job search failed");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleAddLead = async (id) => {
+    await addJobLead(id);
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+    await loadApplications();
+  };
+
+  const handleIgnoreLead = async (id) => {
+    await dismissJobLead(id);
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+  };
 
   const handleResolve = async () => {
     if (!resolveUrl.trim()) return;
@@ -156,6 +196,86 @@ export default function ApplicationsPage() {
 
   return (
     <div className="space-y-6">
+      <section className="bg-white rounded-lg shadow p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Find Jobs</h2>
+
+        <div className="flex flex-wrap gap-2">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Role or query, e.g. Senior Backend Engineer"
+            className="flex-1 border rounded-md px-3 py-2 text-sm"
+          />
+          <input
+            type="text"
+            value={searchLocation}
+            onChange={(e) => setSearchLocation(e.target.value)}
+            placeholder="Location (optional)"
+            className="border rounded-md px-3 py-2 text-sm w-48"
+          />
+          <button
+            onClick={handleSearchLeads}
+            disabled={searching || !searchQuery.trim()}
+            className="px-4 py-2 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {searching ? "Searching…" : "Search"}
+          </button>
+        </div>
+
+        {leads.length === 0 ? (
+          <p className="text-sm text-gray-500">No recently found jobs. Search above to find some.</p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-700">Recently found jobs</p>
+            {leads.map((lead) => (
+              <div key={lead.id} className="bg-gray-50 border rounded-md p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium">{lead.title}</p>
+                    <p className="text-sm text-gray-600">
+                      {[lead.role, lead.company].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                  {lead.source && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">
+                      {lead.source}
+                    </span>
+                  )}
+                </div>
+
+                {lead.snippet && <p className="text-sm text-gray-500">{lead.snippet}</p>}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={lead.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-indigo-600 hover:underline"
+                  >
+                    View posting
+                  </a>
+                  <div className="flex gap-2 ml-auto">
+                    <button
+                      onClick={() => handleAddLead(lead.id)}
+                      className="px-3 py-1 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                    >
+                      Add to tracker
+                    </button>
+                    <button
+                      onClick={() => handleIgnoreLead(lead.id)}
+                      className="px-3 py-1 text-xs rounded-md text-red-600 hover:bg-red-50"
+                    >
+                      Ignore
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="bg-white rounded-lg shadow p-6 space-y-4">
         <h2 className="text-lg font-semibold">Add Job Application</h2>
 

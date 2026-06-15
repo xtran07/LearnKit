@@ -121,6 +121,20 @@ class ApplicationQuestion(Base):
     application: Mapped["JobApplication"] = relationship(back_populates="questions")
 
 
+class JobLead(Base):
+    __tablename__ = "job_leads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(255), index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    role: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    link: Mapped[str] = mapped_column(String(1000))
+    source: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    snippet: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Attempt(Base):
     __tablename__ = "attempts"
 

@@ -77,4 +77,14 @@ export const generateAppQuestions = (applicationId, payload) =>
 
 export const deleteAppQuestion = (id) => api.delete(`/applications/questions/${id}`);
 
+// ---- Job Leads (Find Jobs) ----
+export const listJobLeads = () => api.get("/job-leads");
+
+export const searchJobLeads = (query, location) =>
+  api.post("/job-leads/search", { query, location: location || null });
+
+export const addJobLead = (id) => api.post(`/job-leads/${id}/add`);
+
+export const dismissJobLead = (id) => api.delete(`/job-leads/${id}`);
+
 export default api;

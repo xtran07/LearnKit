@@ -131,3 +131,36 @@ def generate_application_questions(
 ) -> list[dict]:
     raw = _call_provider(_app_question_gen_prompt(company, role, resume_context, count, difficulty), provider)
     return json.loads(_strip_code_fence(raw))
+
+
+def _job_search_prompt(query: str, location: str | None, resume_context: str) -> str:
+    location_part = f" in {location}" if location else ""
+    return (
+        f"Search for current, real job postings for '{query}'{location_part}. "
+        "Use the candidate's resume excerpt below only for relevance, not as search terms.\n\n"
+        f"Resume excerpt:\n{resume_context or '(none provided)'}\n\n"
+        "Return up to 8 results as a JSON array, no markdown fences, where each item has "
+        "the shape:\n"
+        '{"title": "...", "company": "...", "role": "...", "link": "https://...", '
+        '"source": "...", "snippet": "..."}\n'
+        "Only include items with a real, direct URL to the posting (from search results). "
+        "'source' is the site name (e.g. LinkedIn, Indeed, company careers page)."
+    )
+
+
+def _call_gemini_with_search(prompt: str) -> str:
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=settings.gemini_api_key)
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())]),
+    )
+    return response.text
+
+
+def search_job_leads(query: str, location: str | None, resume_context: str) -> list[dict]:
+    raw = _call_gemini_with_search(_job_search_prompt(query, location, resume_context))
+    return json.loads(_strip_code_fence(raw))

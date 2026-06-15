@@ -171,3 +171,22 @@ class AppQuestionGenerateRequest(BaseModel):
     count: int = 5
     difficulty: QuestionDifficulty = QuestionDifficulty.medium
     provider: str = "gemini"
+
+
+# ---- Job Leads (Find Jobs) ----
+class JobLeadOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    company: str | None
+    role: str | None
+    link: str
+    source: str | None
+    snippet: str | None
+    created_at: datetime
+
+
+class JobLeadSearchRequest(BaseModel):
+    query: str
+    location: str | None = None

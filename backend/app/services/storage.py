@@ -20,6 +20,6 @@ def upload_resume(filename: str, file_bytes: bytes, content_type: str) -> str:
 
 def get_resume_url(storage_path: str, download: bool = False, filename: str | None = None) -> str:
     """Returns a short-lived signed URL for the file (the bucket is private)."""
-    options = {"download": filename or True} if download else None
+    options = {"download": filename or True} if download else {}
     result = _client().storage.from_(settings.supabase_bucket).create_signed_url(storage_path, 60, options)
     return result.get("signedURL") or result.get("signedUrl")
