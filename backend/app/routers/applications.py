@@ -141,7 +141,7 @@ async def generate_application_questions(
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"LLM generation failed: {exc}") from exc
 
-    source = QuestionSource.groq if payload.provider == "groq" else QuestionSource.gemini
+    source = QuestionSource(llm_service.question_source_for_provider(payload.provider))
 
     created = []
     for item in generated:

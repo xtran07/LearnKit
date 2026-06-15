@@ -9,6 +9,8 @@ const STORAGE_KEY = "preferredProvider";
 export const MODEL_OPTIONS = [
   { value: "gemini", label: "Gemini 2.5 Flash" },
   { value: "groq", label: "Llama 3.3 70B (Groq)" },
+  { value: "openrouter-llama", label: "Llama 3.3 70B (OpenRouter, free)" },
+  { value: "openrouter-deepseek", label: "DeepSeek V3.1 (OpenRouter, free)" },
 ];
 
 export function ModelProvider({ children }) {

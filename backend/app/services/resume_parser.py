@@ -3,7 +3,7 @@
 import io
 import json
 
-from app.services.llm_service import GEMINI_MODEL, _strip_code_fence
+from app.services.llm_service import _call_provider, _strip_code_fence
 
 
 def extract_text(file_bytes: bytes, filename: str) -> str:
@@ -19,8 +19,6 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
 
 def suggest_topics(resume_text: str, provider: str = "gemini") -> list[str]:
     """Use an LLM to suggest study topics based on resume content."""
-    from app.config import settings
-
     prompt = (
         "Based on the resume text below, list the technical topics, skills, and tools the "
         "candidate should be ready to discuss in an interview (e.g. languages, frameworks, "
@@ -30,20 +28,5 @@ def suggest_topics(resume_text: str, provider: str = "gemini") -> list[str]:
         f"Resume text:\n{resume_text[:8000]}"
     )
 
-    if provider == "groq":
-        from groq import Groq
-
-        client = Groq(api_key=settings.groq_api_key)
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = completion.choices[0].message.content
-    else:
-        from google import genai
-
-        client = genai.Client(api_key=settings.gemini_api_key)
-        response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-        raw = response.text
-
+    raw = _call_provider(prompt, provider)
     return json.loads(_strip_code_fence(raw))

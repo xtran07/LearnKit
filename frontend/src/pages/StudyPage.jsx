@@ -7,7 +7,7 @@ import {
   listTopics,
   submitAttempt,
 } from "../api/client.js";
-import { useModel } from "../ModelContext.jsx";
+import { MODEL_OPTIONS, useModel } from "../ModelContext.jsx";
 
 export default function StudyPage() {
   const { provider: defaultProvider } = useModel();
@@ -121,8 +121,11 @@ export default function StudyPage() {
           <div>
             <label className="block text-xs text-gray-500 mb-1">Provider</label>
             <select value={provider} onChange={(e) => setProvider(e.target.value)} className="border rounded-md px-3 py-2 text-sm">
-              <option value="gemini">Gemini</option>
-              <option value="groq">Groq</option>
+              {MODEL_OPTIONS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
             </select>
           </div>
 

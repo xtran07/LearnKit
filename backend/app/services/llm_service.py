@@ -1,4 +1,4 @@
-"""Unified interface for free-tier LLM providers (Gemini, Groq).
+"""Unified interface for free-tier LLM providers (Gemini, Groq, OpenRouter).
 
 Both providers are used for:
 - Generating interview-style questions (with an ideal answer) for a topic
@@ -12,6 +12,15 @@ from app.config import settings
 
 GEMINI_MODEL = "gemini-2.5-flash"
 GROQ_MODEL = "llama-3.3-70b-versatile"
+
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+# Curated free-tier models available on OpenRouter, keyed by the "provider" value
+# sent from the frontend.
+OPENROUTER_MODELS = {
+    "openrouter-llama": "meta-llama/llama-3.3-70b-instruct:free",
+    "openrouter-deepseek": "deepseek/deepseek-chat-v3.1:free",
+}
 
 
 def _question_gen_prompt(topic_name: str, resume_context: str, count: int, difficulty: str) -> str:
@@ -67,9 +76,33 @@ def _call_groq(prompt: str) -> str:
     return completion.choices[0].message.content
 
 
+def _call_openrouter(prompt: str, model: str) -> str:
+    import httpx
+
+    response = httpx.post(
+        OPENROUTER_API_URL,
+        headers={"Authorization": f"Bearer {settings.openrouter_api_key}"},
+        json={"model": model, "messages": [{"role": "user", "content": prompt}]},
+        timeout=60,
+    )
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
+
+
+def question_source_for_provider(provider: str) -> str:
+    """Maps a "provider" value from the frontend to a QuestionSource enum value."""
+    if provider == "groq":
+        return "groq"
+    if provider in OPENROUTER_MODELS:
+        return "openrouter"
+    return "gemini"
+
+
 def _call_provider(prompt: str, provider: str) -> str:
     if provider == "groq":
         return _call_groq(prompt)
+    if provider in OPENROUTER_MODELS:
+        return _call_openrouter(prompt, OPENROUTER_MODELS[provider])
     return _call_gemini(prompt)
 
 

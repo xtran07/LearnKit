@@ -27,6 +27,7 @@ class QuestionDifficulty(str, enum.Enum):
 class QuestionSource(str, enum.Enum):
     gemini = "gemini"
     groq = "groq"
+    openrouter = "openrouter"
     manual = "manual"
 
 

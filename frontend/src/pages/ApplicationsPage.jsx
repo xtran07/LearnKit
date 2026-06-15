@@ -13,7 +13,7 @@ import {
   searchJobLeads,
   updateApplication,
 } from "../api/client.js";
-import { useModel } from "../ModelContext.jsx";
+import { MODEL_OPTIONS, useModel } from "../ModelContext.jsx";
 
 const statusStyles = {
   new: "bg-gray-100 text-gray-700",
@@ -499,8 +499,11 @@ export default function ApplicationsPage() {
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Provider</label>
                     <select value={genProvider} onChange={(e) => setGenProvider(e.target.value)} className="border rounded-md px-3 py-2 text-sm">
-                      <option value="gemini">Gemini</option>
-                      <option value="groq">Groq</option>
+                      {MODEL_OPTIONS.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
