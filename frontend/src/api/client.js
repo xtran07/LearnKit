@@ -56,6 +56,8 @@ export const submitAttempt = (payload) => api.post("/attempts", payload);
 
 export const listAttempts = (questionId) => api.get("/attempts", { params: { question_id: questionId } });
 
+export const listTopicAttempts = (topicId) => api.get("/attempts", { params: { topic_id: topicId } });
+
 export const getProgress = () => api.get("/progress");
 
 // ---- Job Applications ----

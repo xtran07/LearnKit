@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createTopic, deleteTopic, listTopics, updateTopic } from "../api/client.js";
+import { createTopic, deleteTopic, getProgress, listTopics, updateTopic } from "../api/client.js";
 
 const statusStyles = {
   active: "bg-green-100 text-green-700",
@@ -9,12 +9,16 @@ const statusStyles = {
 
 export default function TopicsPage() {
   const [topics, setTopics] = useState([]);
+  const [scores, setScores] = useState({});
   const [newTopic, setNewTopic] = useState("");
   const [error, setError] = useState(null);
 
   const loadTopics = async () => {
-    const res = await listTopics();
-    setTopics(res.data);
+    const [tRes, pRes] = await Promise.all([listTopics(), getProgress()]);
+    setTopics(tRes.data);
+    const scoreMap = {};
+    for (const p of pRes.data) scoreMap[p.topic_id] = p;
+    setScores(scoreMap);
   };
 
   useEffect(() => {
@@ -77,6 +81,19 @@ export default function TopicsPage() {
                 <p className="text-xs text-gray-500">source: {topic.source}</p>
               </div>
               <div className="flex items-center gap-2">
+                {scores[topic.id]?.average_score != null && (
+                  <span
+                    className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                      scores[topic.id].average_score >= 80
+                        ? "bg-green-100 text-green-700"
+                        : scores[topic.id].average_score >= 50
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-red-100 text-red-600"
+                    }`}
+                  >
+                    {Math.round(scores[topic.id].average_score)}/100
+                  </span>
+                )}
                 <button
                   onClick={() => cycleStatus(topic)}
                   className={`px-2 py-1 text-xs rounded-full ${statusStyles[topic.status]}`}

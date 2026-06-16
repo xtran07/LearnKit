@@ -48,13 +48,44 @@ async def submit_attempt(
 
 @router.get("/attempts", response_model=list[AttemptOut])
 async def list_attempts(
-    question_id: int, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)
+    question_id: int | None = None,
+    topic_id: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
 ):
-    await _get_owned_question(question_id, user_id, db)
-    result = await db.execute(
-        select(Attempt).where(Attempt.question_id == question_id).order_by(Attempt.created_at.desc())
-    )
-    return result.scalars().all()
+    if question_id is not None:
+        await _get_owned_question(question_id, user_id, db)
+        result = await db.execute(
+            select(Attempt).where(Attempt.question_id == question_id).order_by(Attempt.created_at.desc())
+        )
+        return result.scalars().all()
+
+    if topic_id is not None:
+        topic = await db.get(Topic, topic_id)
+        if topic is None or topic.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Topic not found")
+        question_ids = (
+            await db.execute(select(Question.id).where(Question.topic_id == topic_id))
+        ).scalars().all()
+        if not question_ids:
+            return []
+        # Return the latest attempt for each question
+        subq = (
+            select(Attempt.question_id, func.max(Attempt.created_at).label("max_ts"))
+            .where(Attempt.question_id.in_(question_ids))
+            .group_by(Attempt.question_id)
+            .subquery()
+        )
+        result = await db.execute(
+            select(Attempt).join(
+                subq,
+                (Attempt.question_id == subq.c.question_id)
+                & (Attempt.created_at == subq.c.max_ts),
+            )
+        )
+        return result.scalars().all()
+
+    raise HTTPException(status_code=400, detail="Provide question_id or topic_id")
 
 
 @router.get("/progress", response_model=list[TopicProgress])

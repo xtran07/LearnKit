@@ -5,8 +5,10 @@ import {
   generateQuestions,
   getExternalPrompt,
   listQuestions,
+  listTopicAttempts,
   listTopics,
   submitAttempt,
+  updateTopic,
 } from "../api/client.js";
 import { MODEL_OPTIONS, useModel } from "../ModelContext.jsx";
 
@@ -25,6 +27,7 @@ export default function StudyPage() {
   const [results, setResults] = useState({});
   const [grading, setGrading] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [finalized, setFinalized] = useState(false);
 
   useEffect(() => {
     listTopics("active").then((res) => {
@@ -35,14 +38,25 @@ export default function StudyPage() {
 
   const loadQuestions = async (id) => {
     if (!id) return;
-    const res = await listQuestions(id);
-    setQuestions(res.data);
+    const [qRes, aRes] = await Promise.all([listQuestions(id), listTopicAttempts(id)]);
+    setQuestions(qRes.data);
+    const preloaded = {};
+    for (const attempt of aRes.data) preloaded[attempt.question_id] = attempt;
+    setResults(preloaded);
   };
 
   useEffect(() => {
     loadQuestions(topicId);
     setExternalPrompt(null);
+    setFinalized(false);
   }, [topicId]);
+
+  const sectionScore = (() => {
+    const scored = questions.filter((q) => results[q.id]);
+    if (scored.length === 0) return null;
+    const avg = scored.reduce((sum, q) => sum + results[q.id].score, 0) / scored.length;
+    return { avg: Math.round(avg), answered: scored.length, total: questions.length };
+  })();
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -88,6 +102,17 @@ export default function StudyPage() {
   const handleOpenInClaude = (q) => {
     const prompt = `Can you help me understand and learn this interview question?\n\n${q.question_text}`;
     window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, "_blank", "noopener,noreferrer");
+  };
+
+  const handleFinalize = async () => {
+    setFinalized(true);
+    if (sectionScore && sectionScore.avg >= 80) {
+      const topic = topics.find((t) => String(t.id) === String(topicId));
+      if (topic && topic.status === "active") {
+        await updateTopic(Number(topicId), { status: "mastered" });
+        setTopics((prev) => prev.map((t) => (String(t.id) === String(topicId) ? { ...t, status: "mastered" } : t)));
+      }
+    }
   };
 
   const handleStudyAllInClaude = () => {
@@ -209,6 +234,46 @@ export default function StudyPage() {
         )}
       </section>
 
+      {questions.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">Section score</span>
+            {sectionScore ? (
+              <>
+                <span
+                  className={`text-lg font-bold ${
+                    sectionScore.avg >= 80 ? "text-green-600" : sectionScore.avg >= 50 ? "text-yellow-600" : "text-red-500"
+                  }`}
+                >
+                  {sectionScore.avg}/100
+                </span>
+                <span className="text-xs text-gray-400">
+                  {sectionScore.answered}/{sectionScore.total} answered
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-gray-400">No answers yet</span>
+            )}
+          </div>
+          {!finalized ? (
+            <button
+              onClick={handleFinalize}
+              disabled={!sectionScore}
+              className="px-4 py-2 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40"
+            >
+              Done with topic
+            </button>
+          ) : (
+            <div className="text-right">
+              <p className="text-sm font-semibold text-emerald-700">
+                Final score: {sectionScore?.avg ?? 0}/100
+                {sectionScore?.avg >= 80 && " · Marked as mastered!"}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       <section className="space-y-4">
         {questions.length === 0 && (
           <p className="text-sm text-gray-500">No questions yet for this topic. Generate some above.</p>
@@ -219,9 +284,24 @@ export default function StudyPage() {
             <div key={q.id} className="bg-white rounded-lg shadow p-6 space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-medium">{q.question_text}</p>
-                <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">
-                  {q.difficulty} · {q.source}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {result && (
+                    <span
+                      className={`text-xs font-bold px-2 py-1 rounded-full ${
+                        result.score >= 80
+                          ? "bg-green-100 text-green-700"
+                          : result.score >= 50
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-600"
+                      }`}
+                    >
+                      {result.score}/100
+                    </span>
+                  )}
+                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                    {q.difficulty} · {q.source}
+                  </span>
+                </div>
               </div>
 
               <div className="flex gap-2">
