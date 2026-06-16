@@ -19,7 +19,7 @@ OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 # sent from the frontend.
 OPENROUTER_MODELS = {
     "openrouter-llama": "meta-llama/llama-3.3-70b-instruct:free",
-    "openrouter-deepseek": "deepseek/deepseek-chat-v3.1:free",
+    "openrouter-deepseek": "deepseek/deepseek-chat:free",
 }
 
 
@@ -81,7 +81,10 @@ def _call_openrouter(prompt: str, model: str) -> str:
 
     response = httpx.post(
         OPENROUTER_API_URL,
-        headers={"Authorization": f"Bearer {settings.openrouter_api_key}"},
+        headers={
+            "Authorization": f"Bearer {settings.openrouter_api_key}",
+            "Content-Type": "application/json",
+        },
         json={"model": model, "messages": [{"role": "user", "content": prompt}]},
         timeout=60,
     )
