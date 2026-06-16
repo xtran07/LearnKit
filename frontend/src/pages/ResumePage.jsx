@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { getResumeUrl, listResumes, suggestTopics, uploadResume } from "../api/client.js";
+import { PageLoader } from "../components/Spinner.jsx";
 import { useModel } from "../ModelContext.jsx";
 
 export default function ResumePage() {
   const { provider } = useModel();
   const [resumes, setResumes] = useState([]);
+  const [pageLoading, setPageLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [suggesting, setSuggesting] = useState(null);
   const [error, setError] = useState(null);
@@ -16,7 +18,7 @@ export default function ResumePage() {
   };
 
   useEffect(() => {
-    loadResumes();
+    loadResumes().finally(() => setPageLoading(false));
   }, []);
 
   const handleUpload = async (e) => {
@@ -89,40 +91,46 @@ export default function ResumePage() {
 
       <section className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">Your Resumes</h2>
-        {resumes.length === 0 && <p className="text-sm text-gray-500">No resumes uploaded yet.</p>}
-        <ul className="divide-y">
-          {resumes.map((resume) => (
-            <li key={resume.id} className="py-3 flex items-center justify-between">
-              <div>
-                <p className="font-medium">{resume.filename}</p>
-                <p className="text-xs text-gray-500">
-                  Uploaded {new Date(resume.created_at).toLocaleString()}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleView(resume.id)}
-                  className="px-3 py-1.5 text-sm rounded-md border text-gray-600 hover:bg-gray-50"
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => handleDownload(resume.id)}
-                  className="px-3 py-1.5 text-sm rounded-md border text-gray-600 hover:bg-gray-50"
-                >
-                  Download
-                </button>
-                <button
-                  onClick={() => handleSuggestTopics(resume.id)}
-                  disabled={suggesting === resume.id}
-                  className="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {suggesting === resume.id ? "Generating…" : "Suggest Topics"}
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        {pageLoading ? (
+          <PageLoader message="Loading your resumes…" />
+        ) : resumes.length === 0 ? (
+          <p className="text-sm text-gray-500">No resumes uploaded yet.</p>
+        ) : null}
+        {!pageLoading && resumes.length > 0 && (
+          <ul className="divide-y">
+            {resumes.map((resume) => (
+              <li key={resume.id} className="py-3 flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{resume.filename}</p>
+                  <p className="text-xs text-gray-500">
+                    Uploaded {new Date(resume.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleView(resume.id)}
+                    className="px-3 py-1.5 text-sm rounded-md border text-gray-600 hover:bg-gray-50"
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleDownload(resume.id)}
+                    className="px-3 py-1.5 text-sm rounded-md border text-gray-600 hover:bg-gray-50"
+                  >
+                    Download
+                  </button>
+                  <button
+                    onClick={() => handleSuggestTopics(resume.id)}
+                    disabled={suggesting === resume.id}
+                    className="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {suggesting === resume.id ? "Generating…" : "Suggest Topics"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );

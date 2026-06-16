@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createTopic, deleteTopic, getProgress, listTopics, updateTopic } from "../api/client.js";
+import { PageLoader } from "../components/Spinner.jsx";
 
 const statusStyles = {
   active: "bg-green-100 text-green-700",
@@ -10,19 +11,24 @@ const statusStyles = {
 export default function TopicsPage() {
   const [topics, setTopics] = useState([]);
   const [scores, setScores] = useState({});
+  const [pageLoading, setPageLoading] = useState(true);
   const [newTopic, setNewTopic] = useState("");
   const [error, setError] = useState(null);
 
   const loadTopics = async () => {
-    const [tRes, pRes] = await Promise.all([listTopics(), getProgress()]);
+    const tRes = await listTopics();
     setTopics(tRes.data);
-    const scoreMap = {};
-    for (const p of pRes.data) scoreMap[p.topic_id] = p;
-    setScores(scoreMap);
+    getProgress()
+      .then((pRes) => {
+        const scoreMap = {};
+        for (const p of pRes.data) scoreMap[p.topic_id] = p;
+        setScores(scoreMap);
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
-    loadTopics();
+    loadTopics().finally(() => setPageLoading(false));
   }, []);
 
   const handleAdd = async (e) => {
@@ -72,8 +78,9 @@ export default function TopicsPage() {
         <p className="text-xs text-gray-500 mb-3">
           Click a status badge to cycle: active → excluded → mastered → active.
         </p>
-        {topics.length === 0 && <p className="text-sm text-gray-500">No topics yet. Add one above or upload a resume.</p>}
-        <ul className="divide-y">
+        {pageLoading && <PageLoader message="Loading topics…" />}
+        {!pageLoading && topics.length === 0 && <p className="text-sm text-gray-500">No topics yet. Add one above or upload a resume.</p>}
+        {!pageLoading && <ul className="divide-y">
           {topics.map((topic) => (
             <li key={topic.id} className="py-3 flex items-center justify-between gap-3">
               <div>
@@ -109,7 +116,7 @@ export default function TopicsPage() {
               </div>
             </li>
           ))}
-        </ul>
+        </ul>}
       </section>
     </div>
   );

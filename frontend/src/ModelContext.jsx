@@ -10,7 +10,9 @@ export const MODEL_OPTIONS = [
   { value: "gemini", label: "Gemini 2.5 Flash" },
   { value: "groq", label: "Llama 3.3 70B (Groq)" },
   { value: "openrouter-llama", label: "Llama 3.3 70B (OpenRouter, free)" },
-  { value: "openrouter-deepseek", label: "DeepSeek V3.1 (OpenRouter, free)" },
+  { value: "openrouter-gemma", label: "Gemma 4 31B (OpenRouter, free)" },
+  { value: "openrouter-gpt", label: "GPT-OSS 120B (OpenRouter, free)" },
+  { value: "openrouter-nex", label: "Nex-N2-Pro (OpenRouter, free)" },
 ];
 
 export function ModelProvider({ children }) {

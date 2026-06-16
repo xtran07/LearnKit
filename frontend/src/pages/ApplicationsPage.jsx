@@ -14,6 +14,7 @@ import {
   updateApplication,
 } from "../api/client.js";
 import { MODEL_OPTIONS, useModel } from "../ModelContext.jsx";
+import { PageLoader } from "../components/Spinner.jsx";
 
 const statusStyles = {
   new: "bg-gray-100 text-gray-700",
@@ -42,6 +43,7 @@ const emptyForm = {
 export default function ApplicationsPage() {
   const { provider: defaultProvider } = useModel();
   const [applications, setApplications] = useState([]);
+  const [pageLoading, setPageLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [resolveUrl, setResolveUrl] = useState("");
   const [resolving, setResolving] = useState(false);
@@ -71,8 +73,7 @@ export default function ApplicationsPage() {
   };
 
   useEffect(() => {
-    loadApplications();
-    loadLeads();
+    Promise.all([loadApplications(), loadLeads()]).finally(() => setPageLoading(false));
   }, []);
 
   const handleSearchLeads = async () => {
@@ -420,7 +421,8 @@ export default function ApplicationsPage() {
       </section>
 
       <section className="space-y-4">
-        {applications.length === 0 && (
+        {pageLoading && <PageLoader message="Loading applications…" />}
+        {!pageLoading && applications.length === 0 && (
           <p className="text-sm text-gray-500">No applications yet. Add one above.</p>
         )}
 

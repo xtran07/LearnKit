@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getProgress } from "../api/client.js";
+import { PageLoader } from "../components/Spinner.jsx";
 
 const statusStyles = {
   active: "bg-green-100 text-green-700",
@@ -9,16 +10,20 @@ const statusStyles = {
 
 export default function ProgressPage() {
   const [progress, setProgress] = useState([]);
+  const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
-    getProgress().then((res) => setProgress(res.data));
+    getProgress()
+      .then((res) => setProgress(res.data))
+      .finally(() => setPageLoading(false));
   }, []);
 
   return (
     <section className="bg-white rounded-lg shadow p-6">
       <h2 className="text-lg font-semibold mb-4">Progress by Topic</h2>
-      {progress.length === 0 && <p className="text-sm text-gray-500">No topics yet.</p>}
-      <table className="w-full text-sm">
+      {pageLoading && <PageLoader message="Loading progress…" />}
+      {!pageLoading && progress.length === 0 && <p className="text-sm text-gray-500">No topics yet.</p>}
+      {!pageLoading && progress.length > 0 && <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-gray-500 border-b">
             <th className="py-2">Topic</th>
@@ -41,7 +46,7 @@ export default function ProgressPage() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table>}
     </section>
   );
 }

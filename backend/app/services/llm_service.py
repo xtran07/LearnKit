@@ -19,7 +19,9 @@ OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 # sent from the frontend.
 OPENROUTER_MODELS = {
     "openrouter-llama": "meta-llama/llama-3.3-70b-instruct:free",
-    "openrouter-deepseek": "deepseek/deepseek-chat:free",
+    "openrouter-gemma": "google/gemma-4-31b-it:free",
+    "openrouter-gpt": "openai/gpt-oss-120b:free",
+    "openrouter-nex": "nexaai/nex-n2-pro:free",
 }
 
 

@@ -11,6 +11,7 @@ import {
   updateTopic,
 } from "../api/client.js";
 import { MODEL_OPTIONS, useModel } from "../ModelContext.jsx";
+import { PageLoader, Spinner } from "../components/Spinner.jsx";
 
 export default function StudyPage() {
   const { provider: defaultProvider } = useModel();
@@ -21,6 +22,8 @@ export default function StudyPage() {
   const [difficulty, setDifficulty] = useState("medium");
   const [count, setCount] = useState(5);
   const [loading, setLoading] = useState(false);
+  const [topicsLoading, setTopicsLoading] = useState(true);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [externalPrompt, setExternalPrompt] = useState(null);
   const [answers, setAnswers] = useState({});
@@ -30,19 +33,30 @@ export default function StudyPage() {
   const [finalized, setFinalized] = useState(false);
 
   useEffect(() => {
-    listTopics("active").then((res) => {
-      setTopics(res.data);
-      if (res.data.length > 0) setTopicId(String(res.data[0].id));
-    });
+    listTopics("active")
+      .then((res) => {
+        setTopics(res.data);
+        if (res.data.length > 0) setTopicId(String(res.data[0].id));
+      })
+      .finally(() => setTopicsLoading(false));
   }, []);
 
   const loadQuestions = async (id) => {
     if (!id) return;
-    const [qRes, aRes] = await Promise.all([listQuestions(id), listTopicAttempts(id)]);
-    setQuestions(qRes.data);
-    const preloaded = {};
-    for (const attempt of aRes.data) preloaded[attempt.question_id] = attempt;
-    setResults(preloaded);
+    setQuestionsLoading(true);
+    try {
+      const qRes = await listQuestions(id);
+      setQuestions(qRes.data);
+      listTopicAttempts(id)
+        .then((aRes) => {
+          const preloaded = {};
+          for (const attempt of aRes.data) preloaded[attempt.question_id] = attempt;
+          setResults(preloaded);
+        })
+        .catch(() => {});
+    } finally {
+      setQuestionsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -144,17 +158,24 @@ export default function StudyPage() {
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Topic</label>
-            <select
-              value={topicId}
-              onChange={(e) => setTopicId(e.target.value)}
-              className="border rounded-md px-3 py-2 text-sm"
-            >
-              {topics.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+            {topicsLoading ? (
+              <div className="flex items-center gap-2 border rounded-md px-3 py-2">
+                <Spinner size="sm" />
+                <span className="text-sm text-gray-400">Loading topics…</span>
+              </div>
+            ) : (
+              <select
+                value={topicId}
+                onChange={(e) => setTopicId(e.target.value)}
+                className="border rounded-md px-3 py-2 text-sm"
+              >
+                {topics.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
@@ -275,7 +296,8 @@ export default function StudyPage() {
       )}
 
       <section className="space-y-4">
-        {questions.length === 0 && (
+        {questionsLoading && <PageLoader message="Loading questions…" />}
+        {!questionsLoading && questions.length === 0 && (
           <p className="text-sm text-gray-500">No questions yet for this topic. Generate some above.</p>
         )}
         {questions.map((q) => {
