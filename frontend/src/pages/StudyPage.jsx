@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   createQuestionManual,
+  deleteQuestion,
   generateQuestions,
   getExternalPrompt,
   listQuestions,
@@ -89,6 +90,19 @@ export default function StudyPage() {
     window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, "_blank", "noopener,noreferrer");
   };
 
+  const handleStudyAllInClaude = () => {
+    const topic = topics.find((t) => String(t.id) === String(topicId));
+    const topicName = topic ? topic.name : "this topic";
+    const questionList = questions.map((q, i) => `${i + 1}. ${q.question_text}`).join("\n");
+    const prompt = `Help me learn this topic - ${topicName} with below questions:\n\n${questionList}`;
+    window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDeleteQuestion = async (id) => {
+    await deleteQuestion(id);
+    setQuestions((prev) => prev.filter((q) => q.id !== id));
+  };
+
   const handleAddManual = async () => {
     const question_text = prompt("Question text:");
     if (!question_text) return;
@@ -167,6 +181,14 @@ export default function StudyPage() {
           </button>
 
           <button
+            onClick={handleStudyAllInClaude}
+            disabled={!topicId || questions.length === 0}
+            className="px-4 py-2 text-sm rounded-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
+          >
+            Study all in Claude
+          </button>
+
+          <button
             onClick={handleAddManual}
             disabled={!topicId}
             className="px-4 py-2 text-sm rounded-md border text-gray-600 hover:bg-gray-50"
@@ -214,6 +236,12 @@ export default function StudyPage() {
                   className="px-3 py-1 text-xs rounded-md border border-indigo-600 text-indigo-600 hover:bg-indigo-50"
                 >
                   Open in Claude
+                </button>
+                <button
+                  onClick={() => handleDeleteQuestion(q.id)}
+                  className="px-3 py-1 text-xs rounded-md border border-red-300 text-red-500 hover:bg-red-50 ml-auto"
+                >
+                  Remove
                 </button>
               </div>
 
