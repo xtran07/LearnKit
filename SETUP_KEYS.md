@@ -41,7 +41,14 @@ environment variable settings (deployed).
 2. Sign in/sign up -> "Create API Key".
 3. Copy the key -- Groq's free tier requires no payment info.
 
-## 5. Frontend `VITE_API_BASE_URL`
+## 5. `OPENROUTER_API_KEY` (OpenRouter, free tier)
+
+1. Go to https://openrouter.ai -> sign in/sign up (free).
+2. Go to https://openrouter.ai/keys -> "Create Key".
+3. Copy the key -- the curated models used by this app (`meta-llama/llama-3.3-70b-instruct:free`
+   and `deepseek/deepseek-chat-v3.1:free`) are free-tier and require no payment info.
+
+## 6. Frontend `VITE_API_BASE_URL`
 
 - Local dev: `http://localhost:8000`
 - After deploying backend to Render: your Render service URL, e.g. `https://your-app.onrender.com`
@@ -52,7 +59,7 @@ environment variable settings (deployed).
 
 - **Render** (backend): Dashboard -> your service -> Environment -> add `DATABASE_URL`,
   `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET`, `GEMINI_API_KEY`, `GROQ_API_KEY`,
-  `FRONTEND_ORIGIN` (your Vercel URL).
+  `OPENROUTER_API_KEY`, `FRONTEND_ORIGIN` (your Vercel URL).
 - **Vercel** (frontend): Project Settings -> Environment Variables -> add `VITE_API_BASE_URL`
   (your Render backend URL).
 
@@ -74,9 +81,9 @@ environment variable settings (deployed).
    - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
    - **Instance Type**: Free
 5. Add environment variables (Environment tab): `DATABASE_URL`, `SUPABASE_URL`,
-   `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET`, `GEMINI_API_KEY`, `GROQ_API_KEY`. Leave
-   `FRONTEND_ORIGIN` as `http://localhost:5173` for now -- update it after deploying the
-   frontend (step below).
+   `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET`, `GEMINI_API_KEY`, `GROQ_API_KEY`,
+   `OPENROUTER_API_KEY`. Leave `FRONTEND_ORIGIN` as `http://localhost:5173` for now -- update
+   it after deploying the frontend (step below).
 6. Click "Create Web Service". Render builds and gives you a URL like
    `https://learnkit-api.onrender.com`.
 
