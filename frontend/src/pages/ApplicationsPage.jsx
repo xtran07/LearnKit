@@ -55,6 +55,7 @@ export default function ApplicationsPage() {
   const [genCount, setGenCount] = useState(5);
   const [genProvider, setGenProvider] = useState(defaultProvider);
   const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState(null);
   const [copiedQuestionId, setCopiedQuestionId] = useState(null);
 
   const [leads, setLeads] = useState([]);
@@ -161,9 +162,11 @@ export default function ApplicationsPage() {
   const toggleExpand = async (id) => {
     if (expandedId === id) {
       setExpandedId(null);
+      setGenError(null);
       return;
     }
     setExpandedId(id);
+    setGenError(null);
     if (!appQuestions[id]) {
       await loadAppQuestions(id);
     }
@@ -171,12 +174,12 @@ export default function ApplicationsPage() {
 
   const handleGenerateQuestions = async (id) => {
     setGenerating(true);
-    setError(null);
+    setGenError(null);
     try {
       await generateAppQuestions(id, { count: Number(genCount), difficulty: genDifficulty, provider: genProvider });
       await loadAppQuestions(id);
     } catch (err) {
-      setError(err.response?.data?.detail || "Question generation failed");
+      setGenError(err.response?.data?.detail || "Question generation failed");
     } finally {
       setGenerating(false);
     }
@@ -568,6 +571,17 @@ export default function ApplicationsPage() {
                     {generating ? "Generating…" : "Generate Questions"}
                   </button>
                 </div>
+
+                {genError && (
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md px-4 py-3">
+                    <span className="text-red-500 mt-0.5 shrink-0">&#9888;</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-red-700">Generation failed</p>
+                      <p className="text-sm text-red-600 mt-0.5">{genError}</p>
+                    </div>
+                    <button onClick={() => setGenError(null)} className="text-red-400 hover:text-red-600 text-xs">&#10005;</button>
+                  </div>
+                )}
 
                 {(appQuestions[app.id] || []).length === 0 && (
                   <p className="text-sm text-gray-500">No mock interview questions yet. Generate some above.</p>
