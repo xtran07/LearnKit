@@ -243,7 +243,16 @@ export default function StudyPage() {
           </button>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md px-4 py-3">
+            <span className="text-red-500 mt-0.5 shrink-0">&#9888;</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-700">Something went wrong</p>
+              <p className="text-sm text-red-600 mt-0.5">{error}</p>
+            </div>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-xs">&#10005;</button>
+          </div>
+        )}
 
         {externalPrompt && (
           <div className="bg-gray-50 border rounded-md p-3">

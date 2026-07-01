@@ -52,7 +52,8 @@ async def generate_questions(
             topic.name, resume_context, payload.count, payload.difficulty.value, payload.provider
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"LLM generation failed: {exc}") from exc
+        detail = llm_service.friendly_llm_error(exc)
+        raise HTTPException(status_code=502, detail=detail) from exc
 
     source = QuestionSource(llm_service.question_source_for_provider(payload.provider))
 

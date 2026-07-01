@@ -1,5 +1,7 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +13,20 @@ from app.schemas import ApplicationOut, JobLeadOut, JobLeadSearchRequest
 from app.services import llm_service
 
 router = APIRouter(prefix="/job-leads", tags=["job-leads"])
+
+_VERIFY_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; LearnKit/1.0)"}
+
+
+async def _link_is_reachable(url: str) -> bool:
+    """Return True if the URL responds with anything other than 404/410."""
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=6.0) as client:
+            r = await client.head(url, headers=_VERIFY_HEADERS)
+            if r.status_code == 405:
+                r = await client.get(url, headers=_VERIFY_HEADERS)
+            return r.status_code not in (404, 410)
+    except Exception:
+        return False
 
 LEAD_RETENTION_DAYS = 14
 MAX_UNREVIEWED_LEADS = 50
@@ -62,18 +78,24 @@ async def search_job_leads(
     try:
         results = llm_service.search_job_leads(payload.query, payload.location, resume_context)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Job search failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail=llm_service.friendly_llm_error(exc, "job search")) from exc
 
     await _cleanup_leads(user_id, db)
 
     existing_result = await db.execute(select(JobLead.link).where(JobLead.user_id == user_id))
     existing_links = set(existing_result.scalars().all())
 
+    # Filter to candidates not already saved
+    candidates = [item for item in results if item.get("link") and item["link"] not in existing_links]
+
+    # Verify all links concurrently (drop dead ones)
+    reachable_flags = await asyncio.gather(*[_link_is_reachable(item["link"]) for item in candidates])
+
     created = []
-    for item in results:
-        link = item.get("link")
-        if not link or link in existing_links:
+    for item, reachable in zip(candidates, reachable_flags):
+        if not reachable:
             continue
+        link = item["link"]
         existing_links.add(link)
         lead = JobLead(
             user_id=user_id,

@@ -101,7 +101,7 @@ async def resolve_application(
         page_text = _strip_html(response.text)
         data = llm_service.resolve_job_posting(page_text)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Could not resolve job posting: {exc}") from exc
+        raise HTTPException(status_code=502, detail=llm_service.friendly_llm_error(exc, "job posting resolution")) from exc
 
     return ApplicationResolveResult(**data)
 
@@ -139,7 +139,7 @@ async def generate_application_questions(
             application.company, application.role, resume_context, payload.count, payload.difficulty.value, payload.provider
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"LLM generation failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail=llm_service.friendly_llm_error(exc)) from exc
 
     source = QuestionSource(llm_service.question_source_for_provider(payload.provider))
 

@@ -61,6 +61,7 @@ export default function ApplicationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLocation, setSearchLocation] = useState("");
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(null);
 
   const loadApplications = async () => {
     const res = await listApplications();
@@ -79,12 +80,12 @@ export default function ApplicationsPage() {
   const handleSearchLeads = async () => {
     if (!searchQuery.trim()) return;
     setSearching(true);
-    setError(null);
+    setSearchError(null);
     try {
       await searchJobLeads(searchQuery.trim(), searchLocation.trim());
       await loadLeads();
     } catch (err) {
-      setError(err.response?.data?.detail || "Job search failed");
+      setSearchError(err.response?.data?.detail || "Job search failed. Please try again.");
     } finally {
       setSearching(false);
     }
@@ -226,55 +227,75 @@ export default function ApplicationsPage() {
           </button>
         </div>
 
+        {searchError && (
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md px-4 py-3">
+            <span className="text-red-500 mt-0.5 shrink-0">&#9888;</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-700">Search failed</p>
+              <p className="text-sm text-red-600 mt-0.5">{searchError}</p>
+            </div>
+            <button onClick={() => setSearchError(null)} className="text-red-400 hover:text-red-600 text-xs">&#10005;</button>
+          </div>
+        )}
+
         {leads.length === 0 ? (
           <p className="text-sm text-gray-500">No recently found jobs. Search above to find some.</p>
         ) : (
           <div className="space-y-2">
             <p className="text-sm font-medium text-gray-700">Recently found jobs</p>
-            {leads.map((lead) => (
-              <div key={lead.id} className="bg-gray-50 border rounded-md p-3 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium">{lead.title}</p>
-                    <p className="text-sm text-gray-600">
-                      {[lead.role, lead.company].filter(Boolean).join(" · ")}
-                    </p>
+            {leads.map((lead) => {
+              let hostname = "";
+              try { hostname = new URL(lead.link).hostname.replace(/^www\./, ""); } catch {}
+              return (
+                <div key={lead.id} className="bg-gray-50 border rounded-md p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium">{lead.title}</p>
+                      <p className="text-sm text-gray-600">
+                        {[lead.role, lead.company].filter(Boolean).join(" · ")}
+                      </p>
+                    </div>
+                    {lead.source && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 font-medium whitespace-nowrap border border-indigo-100">
+                        {lead.source}
+                      </span>
+                    )}
                   </div>
-                  {lead.source && (
-                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">
-                      {lead.source}
-                    </span>
-                  )}
-                </div>
 
-                {lead.snippet && <p className="text-sm text-gray-500">{lead.snippet}</p>}
+                  {lead.snippet && <p className="text-sm text-gray-500">{lead.snippet}</p>}
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <a
-                    href={lead.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-indigo-600 hover:underline"
-                  >
-                    View posting
-                  </a>
-                  <div className="flex gap-2 ml-auto">
-                    <button
-                      onClick={() => handleAddLead(lead.id)}
-                      className="px-3 py-1 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={lead.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-indigo-600 hover:underline font-medium"
                     >
-                      Add to tracker
-                    </button>
-                    <button
-                      onClick={() => handleIgnoreLead(lead.id)}
-                      className="px-3 py-1 text-xs rounded-md text-red-600 hover:bg-red-50"
-                    >
-                      Ignore
-                    </button>
+                      View posting &#8599;
+                    </a>
+                    {hostname && (
+                      <span className="text-xs text-gray-400 truncate max-w-xs" title={lead.link}>
+                        {hostname}
+                      </span>
+                    )}
+                    <div className="flex gap-2 ml-auto">
+                      <button
+                        onClick={() => handleAddLead(lead.id)}
+                        className="px-3 py-1 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                      >
+                        Add to tracker
+                      </button>
+                      <button
+                        onClick={() => handleIgnoreLead(lead.id)}
+                        className="px-3 py-1 text-xs rounded-md text-red-600 hover:bg-red-50"
+                      >
+                        Ignore
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -299,7 +320,16 @@ export default function ApplicationsPage() {
           </button>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md px-4 py-3">
+            <span className="text-red-500 mt-0.5 shrink-0">&#9888;</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-700">Something went wrong</p>
+              <p className="text-sm text-red-600 mt-0.5">{error}</p>
+            </div>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-xs">&#10005;</button>
+          </div>
+        )}
 
         <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>

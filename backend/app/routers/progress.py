@@ -32,7 +32,7 @@ async def submit_attempt(
             question.question_text, question.ideal_answer, payload.user_answer, payload.provider
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"LLM grading failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail=llm_service.friendly_llm_error(exc, "grading")) from exc
 
     attempt = Attempt(
         question_id=question.id,

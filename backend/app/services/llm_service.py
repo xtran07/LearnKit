@@ -8,6 +8,8 @@ Both providers are used for:
 
 import json
 
+import httpx
+
 from app.config import settings
 
 GEMINI_MODEL = "gemini-2.5-flash"
@@ -23,6 +25,10 @@ OPENROUTER_MODELS = {
     "openrouter-gpt": "openai/gpt-oss-120b:free",
     "openrouter-nex": "nexaai/nex-n2-pro:free",
 }
+
+# Ordered list of all free models used as the fallback chain for OpenRouter requests.
+# When the primary model is unavailable, OpenRouter tries the next one in order.
+_OPENROUTER_FREE_MODELS = list(OPENROUTER_MODELS.values())
 
 
 def _question_gen_prompt(topic_name: str, resume_context: str, count: int, difficulty: str) -> str:
@@ -48,15 +54,52 @@ def _grading_prompt(question: str, ideal_answer: str | None, user_answer: str) -
     )
 
 
-def _strip_code_fence(text: str) -> str:
+def _extract_json(text: str) -> str:
+    """Return the first complete JSON array or object from text, stripping code fences and trailing content."""
+    import re
+
     text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else text
-        if text.endswith("```"):
-            text = text[: -3]
-        if text.startswith("json"):
-            text = text[4:]
-    return text.strip()
+    # Strip markdown code fence (```json ... ``` or ``` ... ```)
+    text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
+    text = re.sub(r"\n?```\s*$", "", text)
+    text = text.strip()
+
+    # Find the opening bracket/brace
+    start = -1
+    opener = None
+    for i, ch in enumerate(text):
+        if ch in ("[", "{"):
+            start = i
+            opener = ch
+            break
+
+    if start == -1:
+        return text
+
+    closer = "]" if opener == "[" else "}"
+    depth = 0
+    in_string = False
+    i = start
+    while i < len(text):
+        ch = text[i]
+        if in_string:
+            if ch == "\\":
+                i += 2
+                continue
+            if ch == '"':
+                in_string = False
+        else:
+            if ch == '"':
+                in_string = True
+            elif ch == opener:
+                depth += 1
+            elif ch == closer:
+                depth -= 1
+                if depth == 0:
+                    return text[start : i + 1]
+        i += 1
+
+    return text[start:]
 
 
 def _call_gemini(prompt: str) -> str:
@@ -79,7 +122,8 @@ def _call_groq(prompt: str) -> str:
 
 
 def _call_openrouter(prompt: str, model: str) -> str:
-    import httpx
+    # Put the requested model first; use the rest as automatic fallbacks.
+    fallback_chain = [model] + [m for m in _OPENROUTER_FREE_MODELS if m != model]
 
     response = httpx.post(
         OPENROUTER_API_URL,
@@ -87,7 +131,11 @@ def _call_openrouter(prompt: str, model: str) -> str:
             "Authorization": f"Bearer {settings.openrouter_api_key}",
             "Content-Type": "application/json",
         },
-        json={"model": model, "messages": [{"role": "user", "content": prompt}]},
+        json={
+            "models": fallback_chain,
+            "route": "fallback",
+            "messages": [{"role": "user", "content": prompt}],
+        },
         timeout=60,
     )
     response.raise_for_status()
@@ -115,13 +163,13 @@ def generate_questions(
     topic_name: str, resume_context: str, count: int, difficulty: str, provider: str = "gemini"
 ) -> list[dict]:
     raw = _call_provider(_question_gen_prompt(topic_name, resume_context, count, difficulty), provider)
-    data = json.loads(_strip_code_fence(raw))
+    data = json.loads(_extract_json(raw))
     return data
 
 
 def grade_answer(question: str, ideal_answer: str | None, user_answer: str, provider: str = "gemini") -> dict:
     raw = _call_provider(_grading_prompt(question, ideal_answer, user_answer), provider)
-    data = json.loads(_strip_code_fence(raw))
+    data = json.loads(_extract_json(raw))
     return {"score": int(data["score"]), "feedback": data.get("feedback", "")}
 
 
@@ -149,7 +197,7 @@ def _job_resolve_prompt(page_text: str) -> str:
 
 def resolve_job_posting(page_text: str, provider: str = "gemini") -> dict:
     raw = _call_provider(_job_resolve_prompt(page_text), provider)
-    return json.loads(_strip_code_fence(raw))
+    return json.loads(_extract_json(raw))
 
 
 def _app_question_gen_prompt(company: str, role: str, resume_context: str, count: int, difficulty: str) -> str:
@@ -168,21 +216,27 @@ def generate_application_questions(
     company: str, role: str, resume_context: str, count: int, difficulty: str, provider: str = "gemini"
 ) -> list[dict]:
     raw = _call_provider(_app_question_gen_prompt(company, role, resume_context, count, difficulty), provider)
-    return json.loads(_strip_code_fence(raw))
+    return json.loads(_extract_json(raw))
 
 
 def _job_search_prompt(query: str, location: str | None, resume_context: str) -> str:
     location_part = f" in {location}" if location else ""
     return (
-        f"Search for current, real job postings for '{query}'{location_part}. "
-        "Use the candidate's resume excerpt below only for relevance, not as search terms.\n\n"
+        f"Search the web right now for active, open job postings matching '{query}'{location_part}. "
+        "Use Google Search to find real listings posted in the last 30 days. "
+        "Use the candidate's resume excerpt only for relevance filtering, not as search terms.\n\n"
         f"Resume excerpt:\n{resume_context or '(none provided)'}\n\n"
-        "Return up to 8 results as a JSON array, no markdown fences, where each item has "
-        "the shape:\n"
+        "Return up to 8 results as a JSON array (no markdown fences, no extra text before or after), "
+        "where each item has the shape:\n"
         '{"title": "...", "company": "...", "role": "...", "link": "https://...", '
-        '"source": "...", "snippet": "..."}\n'
-        "Only include items with a real, direct URL to the posting (from search results). "
-        "'source' is the site name (e.g. LinkedIn, Indeed, company careers page)."
+        '"source": "...", "snippet": "..."}\n\n'
+        "Rules:\n"
+        "- 'link' must be a direct URL to the specific job posting page (not a search page). "
+        "Copy the exact URL from the search result — do NOT construct or guess URLs.\n"
+        "- 'source' is the site name exactly as it appears in the search result "
+        "(e.g. LinkedIn, Indeed, Glassdoor, company careers page name).\n"
+        "- 'snippet' is a 1-2 sentence summary from the search result snippet.\n"
+        "- Omit any result where you are not confident the link is a real, live job posting."
     )
 
 
@@ -201,4 +255,31 @@ def _call_gemini_with_search(prompt: str) -> str:
 
 def search_job_leads(query: str, location: str | None, resume_context: str) -> list[dict]:
     raw = _call_gemini_with_search(_job_search_prompt(query, location, resume_context))
-    return json.loads(_strip_code_fence(raw))
+    return json.loads(_extract_json(raw))
+
+
+def friendly_llm_error(exc: Exception, action: str = "generation") -> str:
+    """Return a user-friendly message for any LLM call failure."""
+    if isinstance(exc, json.JSONDecodeError):
+        return "The AI returned an unexpected response. Please try again or switch providers."
+    if isinstance(exc, httpx.TimeoutException):
+        return "The AI service timed out. Please try again in a moment."
+    if isinstance(exc, (httpx.ConnectError, httpx.NetworkError)):
+        return "Could not reach the AI service. Please check your connection and try again."
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        if code == 429:
+            return "AI service rate limit reached. Please wait a moment and try again."
+        if code in (503, 502):
+            return "The AI service is experiencing high demand. Please try again in a moment or switch providers."
+        if code >= 500:
+            return "The AI service is temporarily unavailable. Please try again later."
+
+    # Catch Gemini / google-genai 503 errors (raised as SDK exceptions, not httpx)
+    exc_str = str(exc)
+    if "503" in exc_str or "UNAVAILABLE" in exc_str or "high demand" in exc_str.lower():
+        return "The AI service is experiencing high demand. Please try again in a moment or switch providers."
+    if "429" in exc_str or "RESOURCE_EXHAUSTED" in exc_str or "quota" in exc_str.lower():
+        return "AI service rate limit reached. Please wait a moment and try again."
+
+    return f"AI {action} failed. Please try again or switch to a different provider."
