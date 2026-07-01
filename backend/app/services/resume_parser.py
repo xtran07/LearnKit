@@ -3,7 +3,7 @@
 import io
 import json
 
-from app.services.llm_service import _call_provider, _strip_code_fence
+from app.services.llm_service import _call_provider, _extract_json
 
 
 def extract_text(file_bytes: bytes, filename: str) -> str:
@@ -29,4 +29,4 @@ def suggest_topics(resume_text: str, provider: str = "gemini") -> list[str]:
     )
 
     raw = _call_provider(prompt, provider)
-    return json.loads(_strip_code_fence(raw))
+    return json.loads(_extract_json(raw))
